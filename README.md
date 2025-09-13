@@ -1,69 +1,57 @@
-# ⚡ Energy Forecasting Service
+# ⚡ Energy Forecasting - Projet Data Science
 
-**Service de prévision de consommation énergétique avec Machine Learning et séries temporelles**
+**Prévision de consommation énergétique avec Machine Learning**
 
-> Projet développé selon le cahier des charges pour la prévision de consommation énergétique en utilisant les données ouvertes RTE et des techniques de ML avancées.
+> Projet junior Data Science pour la prévision de consommation énergétique utilisant les données RTE et des techniques de ML.
 
 ## 📋 Table des matières
 
-- [🎯 Objectifs du projet](#-objectifs-du-projet)
-- [🔧 Architecture](#-architecture)
+- [🎯 Objectifs](#-objectifs)
+- [🔧 Structure du projet](#-structure-du-projet)
 - [🚀 Démarrage rapide](#-démarrage-rapide)
-- [📊 Sources de données](#-sources-de-données)
-- [🤖 Modèles implémentés](#-modèles-implémentés)
-- [📈 Dashboard et visualisations](#-dashboard-et-visualisations)
-- [🔄 Pipeline MLOps](#-pipeline-mlops)
-- [📚 Documentation](#-documentation)
-- [🧪 Tests](#-tests)
-- [🚢 Déploiement](#-déploiement)
+- [📊 Données](#-données)
+- [🤖 Modèles](#-modèles)
+- [📈 Résultats](#-résultats)
+- [🧪 Utilisation](#-utilisation)
 
-## 🎯 Objectifs du projet
+## 🎯 Objectifs
 
-Ce projet implémente un système complet de **prévision de consommation énergétique** pour anticiper la demande sur les 7 prochains jours. Il répond aux besoins métier suivants :
+Ce projet Data Science implémente un système de **prévision de consommation énergétique** pour anticiper la demande sur les prochains jours.
 
-- **Prédiction précise** : Modèles ARIMA, Prophet, LSTM et ensemble methods
-- **Données réelles** : Intégration avec les APIs RTE (Réseau de Transport d'Électricité)
-- **MLOps complet** : Pipeline automatisé de training, validation et déploiement
-- **Dashboard interactif** : Visualisations en temps réel avec Streamlit
-- **API REST** : Service de prédiction scalable avec FastAPI
-- **Monitoring** : Suivi des performances avec MLflow et métriques business
+**Objectifs pédagogiques :**
+- **Analyse exploratoire** des données énergétiques
+- **Feature engineering** pour les séries temporelles
+- **Modélisation ML** avec différents algorithmes
+- **Évaluation** et comparaison des performances
+- **API simple** pour servir les prédictions
+- **Dashboard** de visualisation des résultats
 
-## 🔧 Architecture
+## 🔧 Structure du projet
 
 ```
-energy-forecasting-service/
-├─ app/                          # Application principale
-│  ├─ api/                       # API REST (FastAPI)
-│  │  ├─ main.py                 # Endpoints principaux
-│  │  ├─ schemas.py              # Modèles Pydantic
-│  │  └─ __init__.py
-│  ├─ services/                  # Services métier
-│  │  ├─ loader.py               # Chargement des données
+energy-forecasting/
+├─ app/                          # Application
+│  ├─ api/                       # API FastAPI
+│  │  ├─ main.py                 # Endpoints
+│  │  └─ schemas.py              # Modèles de données
+│  ├─ services/                  # Services ML
+│  │  ├─ loader.py               # Chargement données
 │  │  ├─ features.py             # Feature engineering
-│  │  ├─ models.py               # Training et prédiction
-│  │  ├─ evaluate.py             # Évaluation des modèles
-│  │  ├─ registry.py             # Registre des modèles
-│  │  └─ __init__.py
-│  ├─ config.py                  # Configuration globale
-│  └─ __init__.py
+│  │  └─ models.py               # Modèles ML
+│  └─ config.py                  # Configuration
+├─ scripts/                      # Scripts d'entraînement
+│  ├─ train_models.py            # Entraînement
+│  └─ evaluate_models.py         # Évaluation
+├─ notebooks/                    # Notebooks Jupyter
+│  └─ 01_exploration_donnees.ipynb
 ├─ dashboard/                    # Dashboard Streamlit
-│  └─ app.py                     # Interface utilisateur
-├─ jobs/                         # Jobs de background
-│  ├─ fetch_data.py              # Récupération des données
-│  ├─ retrain.py                 # Réentraînement automatique
-│  └─ backtest.py                # Tests de performance
-├─ tests/                        # Tests automatisés
-│  ├─ test_api.py                # Tests API
-│  ├─ test_features.py           # Tests feature engineering
-│  └─ test_models.py             # Tests modèles ML
-├─ data/                         # Données locales (gitignored)
-├─ mlruns/                       # Tracking MLflow (gitignored)
-├─ .github/workflows/            # CI/CD GitHub Actions
-├─ docker-compose.yml            # Orchestration des services
-├─ Dockerfile                    # Image Docker
-├─ Makefile                      # Commandes utilitaires
-├─ pyproject.toml                # Configuration Python
-└─ README.md                     # Ce fichier
+│  └─ app.py                     # Visualisations
+├─ jobs/                         # Jobs de données
+│  └─ fetch_data.py              # Récupération
+├─ tests/                        # Tests
+├─ data/                         # Données (gitignored)
+├─ models/                       # Modèles sauvegardés
+└─ README.md
 ```
 
 ## 🚀 Démarrage rapide

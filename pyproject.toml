@@ -3,95 +3,52 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "energy-forecasting-service"
+name = "energy-forecasting"
 version = "1.0.0"
-description = "Service de prévision de consommation énergétique avec ML et séries temporelles"
+description = "Prévision de consommation énergétique avec Machine Learning"
 readme = "README.md"
-license = {file = "LICENSE"}
 authors = [
-    {name = "Energy Forecasting Team", email = "team@energy-forecasting.com"}
-]
-maintainers = [
-    {name = "Energy Forecasting Team", email = "team@energy-forecasting.com"}
+    {name = "Data Science Project", email = "project@energy-forecasting.com"}
 ]
 keywords = [
     "energy", "forecasting", "time-series", "machine-learning", 
-    "mlops", "prediction", "consumption", "rte", "smart-grid"
+    "data-science", "prediction", "rte"
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Utilities"
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 requires-python = ">=3.9"
 dependencies = [
-    # Web framework
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.23.0",
-    "pydantic>=2.4.0",
-    "python-multipart>=0.0.6",
+    # Web framework (simple)
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "pydantic>=2.0.0",
     
     # Data processing
-    "pandas>=2.1.0",
+    "pandas>=2.0.0",
     "numpy>=1.24.0",
-    "scipy>=1.11.0",
-    "pyarrow>=13.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.15.0",
     
     # Machine Learning
     "scikit-learn>=1.3.0",
-    "xgboost>=1.7.6",
-    "lightgbm>=4.1.0",
-    "prophet>=1.1.4",
+    "xgboost>=1.7.0",
+    "prophet>=1.1.0",
     "statsmodels>=0.14.0",
     
-    # Deep Learning (optional)
-    "torch>=2.1.0",
-    "tensorflow>=2.13.0",
-    
-    # MLOps and tracking
-    "mlflow>=2.7.0",
-    "wandb>=0.15.0",
-    "dvc>=3.24.0",
-    
-    # Database
-    "sqlalchemy>=2.0.0",
-    "psycopg2-binary>=2.9.7",
-    "alembic>=1.12.0",
-    
-    # Caching and messaging
-    "redis>=5.0.0",
-    "celery>=5.3.0",
-    
-    # Monitoring and logging
-    "prometheus-client>=0.17.0",
-    "structlog>=23.1.0",
-    "sentry-sdk[fastapi]>=1.32.0",
-    
-    # Configuration
-    "python-dotenv>=1.0.0",
-    "pydantic-settings>=2.0.0",
-    
-    # Date and time
-    "python-dateutil>=2.8.2",
-    "pytz>=2023.3",
-    
-    # HTTP client
-    "httpx>=0.25.0",
-    "requests>=2.31.0",
-    
     # Utilities
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
     "click>=8.1.0",
-    "rich>=13.5.0",
     "tqdm>=4.66.0",
+    "joblib>=1.3.0",
 ]
 
 [project.optional-dependencies]
@@ -99,71 +56,26 @@ dev = [
     # Testing
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
-    "pytest-xdist>=3.3.0",
-    "pytest-mock>=3.11.0",
-    "pytest-asyncio>=0.21.0",
-    "factory-boy>=3.3.0",
-    "freezegun>=1.2.0",
-    
-    # Code quality
-    "black>=23.7.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0",
-    "bandit>=1.7.5",
-    "safety>=2.3.0",
-    "pre-commit>=3.4.0",
-    
-    # Documentation
-    "sphinx>=7.1.0",
-    "sphinx-rtd-theme>=1.3.0",
-    "myst-parser>=2.0.0",
     
     # Development tools
     "ipython>=8.15.0",
     "jupyterlab>=4.0.0",
     "notebook>=7.0.0",
-    
-    # Performance testing
-    "locust>=2.17.0",
-    "memory-profiler>=0.61.0",
-    
-    # Type stubs
-    "types-python-dateutil",
-    "types-requests",
-    "types-redis",
-    "pandas-stubs",
 ]
 
 dashboard = [
     "streamlit>=1.27.0",
-    "plotly>=5.16.0",
-    "altair>=5.1.0",
-    "matplotlib>=3.7.0",
-    "seaborn>=0.12.0",
-]
-
-production = [
-    "gunicorn>=21.2.0",
-    "gevent>=23.7.0",
-    "newrelic>=9.1.0",
 ]
 
 all = [
-    "energy-forecasting-service[dev,dashboard,production]"
+    "energy-forecasting[dev,dashboard]"
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-username/energy-forecasting-service"
-Documentation = "https://energy-forecasting-service.readthedocs.io"
-Repository = "https://github.com/your-username/energy-forecasting-service.git"
-Issues = "https://github.com/your-username/energy-forecasting-service/issues"
-Changelog = "https://github.com/your-username/energy-forecasting-service/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/ibraaheem314/energy-forecasting-service"
+Repository = "https://github.com/ibraaheem314/energy-forecasting-service.git"
 
 [project.scripts]
-energy-fetch = "jobs.fetch_data:main"
-energy-train = "jobs.retrain:main"
-energy-backtest = "jobs.backtest:main"
 energy-api = "app.api.main:main"
 energy-dashboard = "dashboard.app:main"
 

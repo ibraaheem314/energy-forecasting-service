@@ -6,16 +6,13 @@ from datetime import datetime
 import logging
 import joblib
 from pathlib import Path
-import mlflow
-import mlflow.sklearn
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
+from sklearn.model_selection import train_test_split
 
 from .features import FeatureService
 from .loader import DataLoader
-from ..config import MLFLOW_TRACKING_URI, MLFLOW_EXPERIMENT_NAME, BASE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +24,6 @@ class ModelService:
         self.data_loader = DataLoader()
         self.models = {}
         self.model_metadata = {}
-        
-        # Setup MLflow
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
         
         # Model configurations
         self.model_configs = {
@@ -55,13 +48,6 @@ class ModelService:
             'linear_regression': {
                 'class': LinearRegression,
                 'params': {}
-            },
-            'ridge': {
-                'class': Ridge,
-                'params': {
-                    'alpha': 1.0,
-                    'random_state': 42
-                }
             }
         }
     
