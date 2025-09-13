@@ -8,42 +8,44 @@ version = "1.0.0"
 description = "Prévision de consommation énergétique avec Machine Learning"
 readme = "README.md"
 authors = [
-    {name = "Data Science Project", email = "project@energy-forecasting.com"}
+    { name = "Data Science Project", email = "project@energy-forecasting.com" }
 ]
 keywords = [
-    "energy", "forecasting", "time-series", "machine-learning", 
+    "energy", "forecasting", "time-series", "machine-learning",
     "data-science", "prediction", "rte"
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
+
+# Dépendances minimales pour Option B (local, sans Docker) :
+# - API FastAPI
+# - Data processing
+# - ML de base (sklearn, lightgbm, pmdarima pour ARIMA/SARIMA)
+# - Utilitaires
 dependencies = [
-    # Web framework (simple)
-    "fastapi>=0.100.0",
-    "uvicorn>=0.20.0",
-    "pydantic>=2.0.0",
-    
-    # Data processing
-    "pandas>=2.0.0",
-    "numpy>=1.24.0",
-    "matplotlib>=3.7.0",
-    "seaborn>=0.12.0",
-    "plotly>=5.15.0",
-    
-    # Machine Learning
+    # Web
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "pydantic>=2.6.0",
+
+    # Data
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+
+    # ML
     "scikit-learn>=1.3.0",
-    "xgboost>=1.7.0",
-    "prophet>=1.1.0",
+    "lightgbm>=4.2.0",
+    "pmdarima>=2.0.4",
     "statsmodels>=0.14.0",
-    
-    # Utilities
+
+    # Utils
     "python-dotenv>=1.0.0",
     "requests>=2.31.0",
     "click>=8.1.0",
@@ -52,43 +54,56 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Outils de dev/tests/qualité
 dev = [
-    # Testing
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
-    
-    # Development tools
+    "ruff>=0.4.0",
+    "black>=24.4.0",
+    "mypy>=1.8.0",
     "ipython>=8.15.0",
     "jupyterlab>=4.0.0",
-    "notebook>=7.0.0",
 ]
 
+# Dashboard & visualisation
 dashboard = [
     "streamlit>=1.27.0",
+    "plotly>=5.15.0",
 ]
 
+# Dépendances lourdes à installer uniquement si besoin
+ml_heavy = [
+    "prophet>=1.1.0",
+    "xgboost>=1.7.0",
+]
+
+# Tout-en-un (dev + dashboard + libs lourdes)
 all = [
-    "energy-forecasting[dev,dashboard]"
+    "energy-forecasting[dev,dashboard,ml_heavy]"
 ]
 
 [project.urls]
 Homepage = "https://github.com/ibraaheem314/energy-forecasting-service"
 Repository = "https://github.com/ibraaheem314/energy-forecasting-service.git"
 
+# Scripts CLI (assure-toi que ces fonctions existent)
 [project.scripts]
 energy-api = "app.api.main:main"
 energy-dashboard = "dashboard.app:main"
 
 [tool.setuptools]
-packages = ["app", "jobs", "dashboard"]
+# Utilise la découverte automatique des paquets
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "dashboard*", "jobs*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json", "*.sql", "*.toml"]
 
-# Black formatting
+# Black
 [tool.black]
 line-length = 100
-target-version = ['py39', 'py310', 'py311']
+target-version = ["py311", "py312"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -106,7 +121,7 @@ extend-exclude = '''
 )/
 '''
 
-# isort configuration
+# isort
 [tool.isort]
 profile = "black"
 line_length = 100
@@ -118,9 +133,9 @@ ensure_newline_before_comments = true
 skip_gitignore = true
 known_first_party = ["app", "jobs", "dashboard"]
 
-# mypy configuration
+# mypy
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -139,25 +154,27 @@ ignore_missing_imports = true
 module = "tests.*"
 disallow_untyped_defs = false
 
-# pytest configuration
+# pytest
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
+# Les warnings tiers (statsmodels/prophet/numba...) peuvent être bruyants ;
+# on n'échoue pas sur les DeprecationWarnings par défaut.
 filterwarnings = [
-    "error",
-    "ignore::UserWarning",
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning",
 ]
+
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests", 
+    "unit: marks tests as unit tests",
     "benchmark: marks tests as benchmark tests",
     "e2e: marks tests as end-to-end tests",
 ]
 
-# Coverage configuration
+# Coverage
 [tool.coverage.run]
 source = ["app"]
 branch = true
@@ -186,10 +203,7 @@ exclude_lines = [
 [tool.coverage.html]
 directory = "htmlcov"
 
-# Bandit security linting
+# Bandit (si utilisé)
 [tool.bandit]
 exclude_dirs = ["tests", "venv", ".venv"]
 skips = ["B101", "B601"]
-
-# Flake8 configuration (in setup.cfg since flake8 doesn't support pyproject.toml yet)
-# See .flake8 file

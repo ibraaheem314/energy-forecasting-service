@@ -1,24 +1,25 @@
+```markdown
 # ⚡ Energy Forecasting - Projet Data Science
 
 **Prévision de consommation énergétique avec Machine Learning (exécution locale sans Docker)**
 
-> Projet exécutable **en local** avec `venv` + `Makefile`.
+> Version **Option B** : projet exécutable **en local** avec `venv` + `Makefile`.  
 > Pas de Docker, pas de MLflow/Postgres/Grafana/Prometheus/Kubernetes dans cette version.
 
 ## Table des matières
 
-* [ Objectifs](#-objectifs)
-* [ Structure du projet](#-structure-du-projet)
-* [ Démarrage rapide](#-démarrage-rapide)
-* [ Données](#-données)
-* [ Modèles](#-modèles)
-* [ Utilisation API](#-utilisation-api)
-* [ Dashboard](#-dashboard)
-* [ Tests](#-tests)
-* [ Livrables Portfolio](#-livrables-portfolio)
-* [ Contribution](#-contribution)
-* [ License](#-license)
-* [ Contact](#-contact)
+- [Objectifs](#-objectifs)  
+- [Structure du projet](#-structure-du-projet)  
+- [Démarrage rapide](#-démarrage-rapide)  
+- [Données](#-données)  
+- [Modèles](#-modèles)  
+- [Utilisation API](#-utilisation-api)  
+- [Dashboard](#-dashboard)  
+- [Tests](#-tests)  
+- [Livrables Portfolio](#-livrables-portfolio)  
+- [Contribution](#-contribution)  
+- [License](#-license)  
+- [Contact](#-contact)
 
 ---
 
@@ -26,17 +27,18 @@
 
 Implémenter un système de **prévision de la consommation énergétique** sur les prochains jours, avec :
 
-* **Feature engineering** pour séries temporelles
-* **Modélisation** (baseline/SARIMAX/LightGBM)
-* **Évaluation** (RMSE/MAPE)
-* **API FastAPI** pour servir les prédictions
-* **Dashboard Streamlit** pour visualiser les résultats
+- **Feature engineering** pour séries temporelles  
+- **Modélisation** (baseline/SARIMAX/LightGBM)  
+- **Évaluation** (RMSE/MAPE)  
+- **API FastAPI** pour servir les prédictions  
+- **Dashboard Streamlit** pour visualiser les résultats
 
 ---
 
 ## Structure du projet
 
 ```
+
 energy-forecasting-service/
 ├─ app/
 │  ├─ api/                 # API FastAPI (endpoints /health, /forecast)
@@ -50,9 +52,9 @@ energy-forecasting-service/
 ├─ dashboard/
 │  └─ app.py               # Streamlit (consomme l'API)
 ├─ scripts/
-│  ├─ fetch_data.py        # Récupération/formatage
-│  ├─ train_models.py      # Entraînement
-│  └─ evaluate_models.py   # Backtests & métriques
+│  ├─ fetch\_data.py        # Récupération/formatage
+│  ├─ train\_models.py      # Entraînement
+│  └─ evaluate\_models.py   # Backtests & métriques
 ├─ tests/
 ├─ data/                   # Données locales (gitignored)
 ├─ models/                 # Artefacts modèles (gitignored)
@@ -60,9 +62,10 @@ energy-forecasting-service/
 ├─ Makefile
 ├─ requirements.txt
 └─ README.md
-```
 
-> Les **notebooks** sont optionnels (uniquement pour explorations rapides). Ils ne sont pas nécessaires pour exécuter le projet.
+````
+
+> Les **notebooks** sont optionnels. Ils ne sont pas nécessaires pour exécuter le projet.
 
 ---
 
@@ -70,9 +73,9 @@ energy-forecasting-service/
 
 ### Prérequis
 
-* **Python 3.11+**
-* **Git**
-* macOS / Linux / Windows (PowerShell)
+- **Python 3.11+**
+- **Git**
+- macOS / Linux / Windows (PowerShell)
 
 ### Installation
 
@@ -88,7 +91,7 @@ cp .env.example .env
 make install
 # (optionnel) outils dev: pytest, ruff, black
 make install-dev
-```
+````
 
 ### Lancer l’API
 
@@ -111,7 +114,7 @@ make dashboard
 ## Données
 
 * **Par défaut** : `app/services/loader.py` génère **des données synthétiques** pour tester l’API et le dashboard immédiatement.
-* **Option recommandée (Open Data)** : brancher **ODRÉ (OpenDataSoft / RTE Open Data)** dans `loader.py` pour récupérer de la conso réelle sans OAuth (plus simple).
+* **Option recommandée (Open Data)** : brancher **ODRÉ (OpenDataSoft / RTE Open Data)** dans `loader.py` pour récupérer de la conso réelle sans OAuth.
 * **Option avancée (plus tard)** : **RTE iservices** (OAuth2/client secret) si tu veux des APIs nécessitant authentification.
 
 Configuration minimale (`.env`) :
@@ -123,6 +126,9 @@ DASHBOARD_PORT=8501
 DATA_DIR=./data
 CITY=Paris
 TIMEZONE=Europe/Paris
+DATA_SOURCE=synthetic   # synthetic | odre
+ODRE_BASE_URL=https://odre.opendatasoft.com
+ODRE_DATASET=eco2mix-national-cons-def
 ```
 
 ---
@@ -138,7 +144,7 @@ TIMEZONE=Europe/Paris
 ### Commandes utiles
 
 ```bash
-make fetch-data   # récupère/prepare les données (synthétiques ou ODRÉ si configuré)
+make fetch-data   # récupère/prepare les données (synthetiques ou ODRÉ si configuré)
 make train        # entraîne les modèles
 make evaluate     # exécute backtests RMSE/MAPE
 ```
@@ -206,7 +212,7 @@ make dashboard
 
 ```bash
 make test      # tests unitaires
-make lint      # ruff + black --check
+make lint      # ruff + black --check (si configurés)
 ```
 
 **Couverture visée** : ≥ 80% sur la logique de features et endpoints principaux.
@@ -228,7 +234,7 @@ Contributions bienvenues ! Ouvre une **issue** ou une **PR**.
 
 ---
 
-## 📄 License
+## License
 
 MIT License — voir [LICENSE](LICENSE).
 
@@ -242,3 +248,6 @@ MIT License — voir [LICENSE](LICENSE).
 ---
 
 **⚡ Développé pour apprendre et démontrer une mise en production simple (sans Docker) ⚡**
+
+```
+```
