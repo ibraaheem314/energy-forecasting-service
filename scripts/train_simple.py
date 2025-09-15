@@ -17,6 +17,15 @@ from app.services.loader import load_timeseries
 def create_features(df):
     """Créer des features simples pour l'entraînement."""
     df = df.copy()
+    
+    # Normaliser le nom de la colonne cible
+    if "consommation" in df.columns:
+        df = df.rename(columns={"consommation": "y"})
+    elif len(df.columns) > 0 and "y" not in df.columns:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            df = df.rename(columns={numeric_cols[0]: "y"})
+    
     df['hour'] = df.index.hour
     df['day_of_week'] = df.index.dayofweek
     df['month'] = df.index.month

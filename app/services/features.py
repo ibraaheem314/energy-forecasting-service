@@ -1,268 +1,199 @@
-"""Feature engineering for energy forecasting models."""
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-import logging
+"""Feature engineering for energy forecasting models (RTE ODRÉ)."""
 
-from .loader import DataLoader
+import logging
+from typing import Dict, List
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from .loader import load_timeseries
 
 logger = logging.getLogger(__name__)
 
+# --- configuration "métier" ---
+TARGET_CANDIDATES = ["y", "consommation", "consommation_mw", "consommation__mw_"]
+BASELINE_CANDIDATES = [("prevision_j1", "prev_j1"), ("prévision_j_1_mw", "prev_j1"),
+                       ("prevision_j", "prev_j0"), ("prévision_j_mw", "prev_j0")]
+
+# exogènes principales
+EXO_CANDIDATES = [
+    "fioul", "charbon", "gaz", "nucleaire", "eolien", "solaire",
+    "hydraulique", "pompage", "bioenergies",
+    "ech_physiques", "taux_co2",
+    # sous-détails utiles (optionnels)
+    "eolien_terrestre", "eolien_offshore",
+    "gaz_ccg", "gaz_cogen", "gaz_tac",
+    "hydraulique_fil_eau_eclusee", "hydraulique_lacs", "hydraulique_step_turbinage",
+    "fioul_tac", "fioul_cogen", "fioul_autres",
+    "ech_comm_angleterre", "ech_comm_espagne", "ech_comm_italie",
+    "ech_comm_suisse", "ech_comm_allemagne_belgique",
+    "stockage_batterie", "destockage_batterie",
+]
+
 class FeatureService:
-    """Service for feature engineering and preparation."""
-    
+    """Service for feature engineering and preparation (synchrone)."""
+
     def __init__(self):
-        self.data_loader = DataLoader()
         self.scalers: Dict[str, StandardScaler] = {}
         self.encoders: Dict[str, LabelEncoder] = {}
-    
-    async def prepare_features(
+
+    def prepare_features(
         self,
         start_time: datetime,
         end_time: datetime,
-        location: str,
-        include_weather: bool = True,
-        include_external: bool = True
+        location: str = "France",
+        include_weather: bool = False,   # hooks gardés mais inactifs
+        include_external: bool = False
     ) -> pd.DataFrame:
-        """Prepare features for model training or prediction.
-        
-        Args:
-            start_time: Start time for feature preparation
-            end_time: End time for feature preparation
-            location: Location identifier
-            include_weather: Whether to include weather features
-            include_external: Whether to include external factors
-            
-        Returns:
-            DataFrame with engineered features
         """
-        try:
-            logger.info(f"Preparing features for {location} from {start_time} to {end_time}")
-            
-            # Load base energy data
-            energy_data = await self.data_loader.load_historical_data(
-                start_time, end_time, location, "consumption"
-            )
-            
-            # Create temporal features
-            features_df = self._create_temporal_features(energy_data)
-            
-            # Add lag features
-            features_df = self._create_lag_features(features_df)
-            
-            # Add rolling statistics
-            features_df = self._create_rolling_features(features_df)
-            
-            # Add weather features if requested
-            if include_weather:
-                weather_features = await self._create_weather_features(
-                    start_time, end_time, location
-                )
-                features_df = pd.merge(
-                    features_df, weather_features, on='timestamp', how='left'
-                )
-            
-            # Add external factor features if requested
-            if include_external:
-                external_features = await self._create_external_features(
-                    start_time, end_time
-                )
-                features_df = pd.merge(
-                    features_df, external_features, on='timestamp', how='left'
-                )
-            
-            # Handle missing values
-            features_df = self._handle_missing_values(features_df)
-            
-            # Scale numerical features
-            features_df = self._scale_features(features_df)
-            
-            logger.info(f"Features prepared: {features_df.shape[1]} features, {features_df.shape[0]} samples")
-            return features_df
-            
-        except Exception as e:
-            logger.error(f"Failed to prepare features: {e}")
-            raise
-    
-    def _create_temporal_features(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Create time-based features."""
-        df = data.copy()
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        # Extract temporal components
-        df['hour'] = df['timestamp'].dt.hour
-        df['day_of_week'] = df['timestamp'].dt.dayofweek
-        df['day_of_month'] = df['timestamp'].dt.day
-        df['day_of_year'] = df['timestamp'].dt.dayofyear
-        df['week_of_year'] = df['timestamp'].dt.isocalendar().week
-        df['month'] = df['timestamp'].dt.month
-        df['quarter'] = df['timestamp'].dt.quarter
-        
-        # Create cyclical features
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-        df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-        df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
-        
-        # Binary features
-        df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
-        df['is_business_hour'] = ((df['hour'] >= 8) & (df['hour'] <= 18)).astype(int)
-        df['is_night'] = ((df['hour'] >= 22) | (df['hour'] <= 6)).astype(int)
-        
+        Charge le dataset via loader, sélectionne la cible + exogènes,
+        crée lags/rolling/temporal & flags fairness, gère NA et scaling.
+        Retourne un DF indexé par timestamp, prêt pour l'entraînement.
+        """
+        logger.info("Preparing features for %s between %s and %s", location, start_time, end_time)
+
+        # Load raw et fenêtre temporelle
+        raw = load_timeseries(location)
+        raw = raw.loc[(raw.index >= pd.Timestamp(start_time, tz="UTC")) &
+                      (raw.index <= pd.Timestamp(end_time, tz="UTC"))].copy()
+        raw.index.name = "timestamp"
+        raw.reset_index(inplace=True)
+
+        # Trouver/renommer la cible en 'y'
+        target_col = None
+        for cand in TARGET_CANDIDATES:
+            if cand in raw.columns:
+                target_col = cand
+                break
+        if target_col is None:
+            raise RuntimeError("Impossible d’identifier la cible (consommation).")
+        raw = raw.rename(columns={target_col: "y"})
+
+        # Baselines si dispo (prévision J/J+1)
+        for cand, std in BASELINE_CANDIDATES:
+            if cand in raw.columns:
+                raw = raw.rename(columns={cand: std})
+
+        # Garder exogènes présentes
+        keep_exo = [c for c in EXO_CANDIDATES if c in raw.columns]
+        keep_cols = ["timestamp", "y"] + [c for c in ["prev_j1", "prev_j0"] if c in raw.columns] + keep_exo
+        df = raw[keep_cols].copy()
+
+        # Temporal features + fairness flags
+        df = self._create_temporal_features(df)
+
+        # Lags/rolling pour y et quelques exogènes clés
+        df = self._create_lag_features(df, target="y", max_lag=24, exo_for_lags=["gaz", "nucleaire", "eolien", "ech_physiques", "taux_co2"])
+        df = self._create_rolling_features(df, target="y", windows=[3, 6, 12, 24, 168])
+
+        # (optionnel) weather/external hooks – désactivés par défaut
+        # if include_weather: ...
+        # if include_external: ...
+
+        # Handle NA
+        df = self._handle_missing_values(df)
+
+        # Scaling (on ne scale pas 'y' ni 'prev_j1/prev_j0')
+        df = self._scale_features(df, exclude_cols=["timestamp", "y", "prev_j1", "prev_j0"])
+
+        logger.info("Features ready: %d rows, %d columns", df.shape[0], df.shape[1])
+        # On remet l'index temporel
+        df = df.set_index("timestamp").sort_index()
         return df
-    
-    def _create_lag_features(self, df: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
-        """Create lag features for time series data."""
-        result_df = df.copy()
-        
+
+    # --------- helpers ---------
+
+    def _create_temporal_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        out["timestamp"] = pd.to_datetime(out["timestamp"], utc=True)
+
+        out["hour"] = out["timestamp"].dt.hour
+        out["day_of_week"] = out["timestamp"].dt.dayofweek
+        out["day_of_month"] = out["timestamp"].dt.day
+        out["day_of_year"] = out["timestamp"].dt.dayofyear
+        out["week_of_year"] = out["timestamp"].dt.isocalendar().week.astype(int)
+        out["month"] = out["timestamp"].dt.month
+        out["quarter"] = out["timestamp"].dt.quarter
+
+        # cyclical
+        out["hour_sin"] = np.sin(2 * np.pi * out["hour"] / 24)
+        out["hour_cos"] = np.cos(2 * np.pi * out["hour"] / 24)
+        out["dow_sin"] = np.sin(2 * np.pi * out["day_of_week"] / 7)
+        out["dow_cos"] = np.cos(2 * np.pi * out["day_of_week"] / 7)
+        out["month_sin"] = np.sin(2 * np.pi * out["month"] / 12)
+        out["month_cos"] = np.cos(2 * np.pi * out["month"] / 12)
+
+        # fairness flags simples
+        out["season"] = (out["timestamp"].dt.month % 12) // 3 + 1
+        out["is_winter"] = (out["season"] == 1).astype(int)
+        out["is_weekend"] = (out["day_of_week"] >= 5).astype(int)
+        out["is_business_hour"] = ((out["hour"] >= 8) & (out["hour"] <= 18)).astype(int)
+        out["is_peak"] = out["hour"].isin([8, 9, 10, 18, 19, 20]).astype(int)
+        out["is_night"] = ((out["hour"] >= 22) | (out["hour"] <= 6)).astype(int)
+
+        # part renouv. (si colonnes présentes)
+        if "eolien" in out.columns or "solaire" in out.columns:
+            ren = out.get("eolien", 0).fillna(0) + out.get("solaire", 0).fillna(0)
+            foss = out.get("gaz", 0).fillna(0) + out.get("fioul", 0).fillna(0) + out.get("charbon", 0).fillna(0)
+            denom = (ren + foss).replace(0, np.nan)
+            out["renew_share"] = (ren / denom).fillna(0.0)
+            out["renew_share_high"] = (out["renew_share"] > out["renew_share"].median()).astype(int)
+
+        return out
+
+    def _create_lag_features(
+        self, df: pd.DataFrame, target: str = "y", max_lag: int = 24, exo_for_lags: List[str] = None
+    ) -> pd.DataFrame:
+        out = df.copy()
+        # lags de la cible
         for lag in [1, 2, 3, 6, 12, 24]:
             if lag <= max_lag:
-                result_df[f'value_lag_{lag}'] = result_df['value'].shift(lag)
-        
-        return result_df
-    
-    def _create_rolling_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create rolling statistics features."""
-        result_df = df.copy()
-        
-        # Rolling means
-        for window in [3, 6, 12, 24]:
-            result_df[f'value_rolling_mean_{window}'] = (
-                result_df['value'].rolling(window=window, min_periods=1).mean()
-            )
-            result_df[f'value_rolling_std_{window}'] = (
-                result_df['value'].rolling(window=window, min_periods=1).std()
-            )
-            result_df[f'value_rolling_min_{window}'] = (
-                result_df['value'].rolling(window=window, min_periods=1).min()
-            )
-            result_df[f'value_rolling_max_{window}'] = (
-                result_df['value'].rolling(window=window, min_periods=1).max()
-            )
-        
-        # Exponential weighted moving average
-        result_df['value_ewma_alpha_0.1'] = (
-            result_df['value'].ewm(alpha=0.1).mean()
-        )
-        result_df['value_ewma_alpha_0.3'] = (
-            result_df['value'].ewm(alpha=0.3).mean()
-        )
-        
-        return result_df
-    
-    async def _create_weather_features(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        location: str
-    ) -> pd.DataFrame:
-        """Create weather-based features."""
-        weather_data = await self.data_loader.load_weather_data(
-            start_time, end_time, location
-        )
-        
-        df = weather_data.copy()
-        
-        # Derived weather features
-        df['apparent_temperature'] = (
-            df['temperature'] - 0.4 * (df['temperature'] - 10) * (1 - df['humidity'] / 100)
-        )
-        df['heat_index'] = df['temperature'] + 0.5 * (df['humidity'] - 50)
-        df['wind_chill'] = (
-            df['temperature'] - 2 * df['wind_speed']
-        )
-        
-        # Weather categories
-        df['temp_category'] = pd.cut(
-            df['temperature'],
-            bins=[-float('inf'), 5, 15, 25, float('inf')],
-            labels=['cold', 'cool', 'warm', 'hot']
-        )
-        df['wind_category'] = pd.cut(
-            df['wind_speed'],
-            bins=[-float('inf'), 5, 15, 25, float('inf')],
-            labels=['calm', 'light', 'moderate', 'strong']
-        )
-        
-        # Encode categorical features
-        for col in ['temp_category', 'wind_category']:
-            if col not in self.encoders:
-                self.encoders[col] = LabelEncoder()
-                df[col] = self.encoders[col].fit_transform(df[col].astype(str))
-            else:
-                df[col] = self.encoders[col].transform(df[col].astype(str))
-        
-        return df[['timestamp', 'temperature', 'humidity', 'wind_speed', 
-                  'cloud_cover', 'apparent_temperature', 'heat_index', 
-                  'wind_chill', 'temp_category', 'wind_category']]
-    
-    async def _create_external_features(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> pd.DataFrame:
-        """Create external factor features."""
-        external_data = await self.data_loader.load_external_factors(
-            start_time, end_time, ['holidays', 'economic_indicators']
-        )
-        
-        return external_data
-    
+                out[f"{target}_lag_{lag}"] = out[target].shift(lag)
+
+        # lags de quelques exogènes clés si présentes
+        exo_for_lags = exo_for_lags or []
+        for col in exo_for_lags:
+            if col in out.columns:
+                out[f"{col}_lag_1"] = out[col].shift(1)
+                out[f"{col}_lag_24"] = out[col].shift(24)
+        return out
+
+    def _create_rolling_features(self, df: pd.DataFrame, target: str = "y", windows: List[int] = None) -> pd.DataFrame:
+        out = df.copy()
+        windows = windows or [3, 6, 12, 24]
+        for w in windows:
+            out[f"{target}_roll_mean_{w}"] = out[target].rolling(window=w, min_periods=1).mean()
+            out[f"{target}_roll_std_{w}"] = out[target].rolling(window=w, min_periods=1).std()
+        # EWMA
+        out[f"{target}_ewma_0_1"] = out[target].ewm(alpha=0.1).mean()
+        out[f"{target}_ewma_0_3"] = out[target].ewm(alpha=0.3).mean()
+        return out
+
     def _handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Handle missing values in the dataset."""
-        result_df = df.copy()
-        
-        # Forward fill for most features
-        numeric_cols = result_df.select_dtypes(include=[np.number]).columns
-        for col in numeric_cols:
-            if col != 'timestamp':
-                result_df[col] = result_df[col].fillna(method='ffill').fillna(method='bfill')
-        
-        # Fill remaining NaN with median
-        for col in numeric_cols:
-            if col != 'timestamp':
-                result_df[col] = result_df[col].fillna(result_df[col].median())
-        
-        return result_df
-    
-    def _scale_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Scale numerical features."""
-        result_df = df.copy()
-        
-        # Identify numeric columns to scale (exclude target and categorical)
-        exclude_cols = ['timestamp', 'value', 'location', 'data_type']
-        numeric_cols = result_df.select_dtypes(include=[np.number]).columns
-        cols_to_scale = [col for col in numeric_cols if col not in exclude_cols]
-        
-        for col in cols_to_scale:
-            if col not in self.scalers:
-                self.scalers[col] = StandardScaler()
-                result_df[col] = self.scalers[col].fit_transform(
-                    result_df[col].values.reshape(-1, 1)
-                ).flatten()
+        out = df.copy()
+        num_cols = out.select_dtypes(include=[np.number]).columns.tolist()
+        # forward/backward fill
+        for c in num_cols:
+            out[c] = out[c].fillna(method="ffill").fillna(method="bfill")
+        # dernier filet : médiane
+        for c in num_cols:
+            out[c] = out[c].fillna(out[c].median())
+        return out
+
+    def _scale_features(self, df: pd.DataFrame, exclude_cols: List[str]) -> pd.DataFrame:
+        out = df.copy()
+        num_cols = out.select_dtypes(include=[np.number]).columns.tolist()
+        cols_to_scale = [c for c in num_cols if c not in set(exclude_cols)]
+        for c in cols_to_scale:
+            if c not in self.scalers:
+                self.scalers[c] = StandardScaler()
+                out[c] = self.scalers[c].fit_transform(out[[c]]).ravel()
             else:
-                result_df[col] = self.scalers[col].transform(
-                    result_df[col].values.reshape(-1, 1)
-                ).flatten()
-        
-        return result_df
-    
+                out[c] = self.scalers[c].transform(out[[c]]).ravel()
+        return out
+
+    # placeholder (si on veut extraire les importances d’un modèle)
     def get_feature_importance(self, feature_names: List[str]) -> Dict[str, float]:
-        """Get feature importance scores (placeholder implementation)."""
-        # This would typically come from a trained model
-        importance_scores = {}
-        for name in feature_names:
-            if 'lag' in name:
-                importance_scores[name] = np.random.uniform(0.1, 0.3)
-            elif 'rolling' in name:
-                importance_scores[name] = np.random.uniform(0.05, 0.2)
-            elif any(temp in name for temp in ['temperature', 'weather']):
-                importance_scores[name] = np.random.uniform(0.1, 0.25)
-            else:
-                importance_scores[name] = np.random.uniform(0.01, 0.1)
-        
-        return importance_scores
+        return {name: float(np.random.uniform(0.01, 0.3)) for name in feature_names}
+

@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
+import numpy as np
 from app.services.loader import load_timeseries
 from app.services.models import load_production_model, predict_with_model
 
@@ -20,6 +21,16 @@ class ForecastResponse(BaseModel):
     model_name: str
     model_version: str
 
+@app.get("/")
+def root():
+    return {
+        "message": "⚡ Energy Forecasting API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+        "forecast": "/forecast"
+    }
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -27,9 +38,18 @@ def health():
 @app.post("/forecast", response_model=ForecastResponse)
 def forecast(req: ForecastRequest):
     # Charger les données récentes
-    df = load_timeseries(city=req.city)
+    df = load_timeseries(location=req.city)
     if df is None or df.empty:
         raise HTTPException(503, "Aucune donnée disponible")
+    
+    # Normaliser le nom de la colonne cible pour la compatibilité avec models.py
+    if "consommation" in df.columns:
+        df = df.rename(columns={"consommation": "y"})
+    elif len(df.columns) > 0 and "y" not in df.columns:
+        # Prendre la première colonne numérique comme cible par défaut
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            df = df.rename(columns={numeric_cols[0]: "y"})
 
     # Charger le modèle “production”
     model = load_production_model()
