@@ -24,7 +24,7 @@ class ForecastResponse(BaseModel):
 @app.get("/")
 def root():
     return {
-        "message": "⚡ Energy Forecasting API",
+        "message": "Energy Forecasting API",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health",
@@ -41,17 +41,25 @@ def forecast(req: ForecastRequest):
     df = load_timeseries(location=req.city)
     if df is None or df.empty:
         raise HTTPException(503, "Aucune donnée disponible")
-    
-    # Normaliser le nom de la colonne cible pour la compatibilité avec models.py
-    if "consommation" in df.columns:
-        df = df.rename(columns={"consommation": "y"})
-    elif len(df.columns) > 0 and "y" not in df.columns:
-        # Prendre la première colonne numérique comme cible par défaut
+
+    # Normaliser le nom de la colonne cible (support ODRÉ et synthétique)
+    target_candidates = ["y", "consommation", "consommation_mw", "consommation__mw_"]
+    target_col = None
+    for candidate in target_candidates:
+        if candidate in df.columns:
+            target_col = candidate
+            break
+
+    if target_col is None:
+        # Fallback sur la première colonne numérique
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) > 0:
-            df = df.rename(columns={numeric_cols[0]: "y"})
+            target_col = numeric_cols[0]
 
-    # Charger le modèle “production”
+    if target_col and target_col != "y":
+        df = df.rename(columns={target_col: "y"})
+
+    # Charger le modèle "production"
     model = load_production_model()
     if model is None:
         raise HTTPException(503, "Aucun modèle en production")
@@ -61,7 +69,10 @@ def forecast(req: ForecastRequest):
 
     # Construire timeline future
     last_ts = df.index.max()
-    future_index = [ (last_ts + timedelta(hours=i+1)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(req.horizon) ]
+    future_index = [
+        (last_ts + timedelta(hours=i+1)).strftime("%Y-%m-%dT%H:%M:%SZ") 
+        for i in range(req.horizon)
+    ]
 
     return ForecastResponse(
         timestamps=future_index,

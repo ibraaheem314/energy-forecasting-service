@@ -18,11 +18,12 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 # Dépendances minimales pour Option B (local, sans Docker) :
 # - API FastAPI
@@ -69,6 +70,8 @@ dev = [
 dashboard = [
     "streamlit>=1.27.0",
     "plotly>=5.15.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
 ]
 
 # Dépendances lourdes à installer uniquement si besoin
@@ -93,6 +96,7 @@ energy-dashboard = "dashboard.app:main"
 
 [tool.setuptools]
 # Utilise la découverte automatique des paquets
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*", "dashboard*", "jobs*"]
@@ -165,7 +169,6 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
     "ignore::UserWarning",
 ]
-
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",

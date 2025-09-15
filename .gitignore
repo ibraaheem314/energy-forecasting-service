@@ -187,3 +187,16 @@ Thumbs.db
 # Monitoring
 prometheus_data/
 grafana_data/
+
+# Project specific models et data
+models/*.joblib
+models/*.pkl
+models/predictions_*.png
+models/comparison_*.json
+data/cache/
+data/timeseries.csv
+
+# Keeping only essential model files
+!models/.gitkeep
+!models/evaluation_summary.json
+!models/training_summary.json

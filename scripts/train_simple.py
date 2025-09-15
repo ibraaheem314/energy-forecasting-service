@@ -15,37 +15,81 @@ sys.path.append(str(Path(__file__).parent.parent))
 from app.services.loader import load_timeseries
 
 def create_features(df):
-    """Créer des features simples pour l'entraînement."""
-    df = df.copy()
-    
+    """Créer des features simples pour l'entraînement - Version ODRÉ simplifiée."""
     # Normaliser le nom de la colonne cible
-    if "consommation" in df.columns:
-        df = df.rename(columns={"consommation": "y"})
-    elif len(df.columns) > 0 and "y" not in df.columns:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        if len(numeric_cols) > 0:
-            df = df.rename(columns={numeric_cols[0]: "y"})
+    target_candidates = ["y", "consommation", "consommation_mw", "consommation__mw_"]
+    target_col = None
+    for candidate in target_candidates:
+        if candidate in df.columns:
+            target_col = candidate
+            break
     
-    df['hour'] = df.index.hour
-    df['day_of_week'] = df.index.dayofweek
-    df['month'] = df.index.month
-    df['is_weekend'] = (df.index.dayofweek >= 5).astype(int)
+    if target_col is None:
+        raise ValueError("Aucune colonne cible trouvée")
     
-    # Features lag
-    for lag in [1, 24, 168]:  # 1h, 1 jour, 1 semaine
-        df[f'y_lag_{lag}'] = df['y'].shift(lag)
+    # Créer un nouveau DataFrame avec toutes les données
+    df_clean = df.copy()
+    df_clean = df_clean.rename(columns={target_col: "y"})
     
-    # Rolling means
-    df['y_rolling_24'] = df['y'].rolling(24, min_periods=1).mean()
-    df['y_rolling_168'] = df['y'].rolling(168, min_periods=1).mean()
+    print(f"Données totales: {len(df_clean)} échantillons")
+    print(f"NaN dans cible: {df_clean['y'].isnull().sum()}")
     
-    return df.dropna()
+    # Features temporelles basées sur l'index
+    df_clean['hour'] = df_clean.index.hour
+    df_clean['day_of_week'] = df_clean.index.dayofweek
+    df_clean['month'] = df_clean.index.month
+    df_clean['is_weekend'] = (df_clean.index.dayofweek >= 5).astype(int)
+    
+    # Garder seulement quelques colonnes d'énergie principales qui ont le moins de NaN
+    energy_cols = ['y', 'nucleaire_mw', 'eolien_mw', 'gaz_mw', 'hydraulique_mw']
+    keep_cols = ['hour', 'day_of_week', 'month', 'is_weekend']
+    
+    # Ajouter les colonnes d'énergie qui existent
+    for col in energy_cols:
+        if col in df_clean.columns:
+            keep_cols.append(col)
+    
+    df_final = df_clean[keep_cols].copy()
+    
+    # VRAIE imputation par médiane pour TOUTES les colonnes avec NaN
+    print("Imputation par médiane en cours...")
+    for col in df_final.columns:
+        if df_final[col].dtype in ['float64', 'int64'] and df_final[col].isnull().any():
+            median_val = df_final[col].median()
+            if not pd.isna(median_val):
+                nan_count_before = df_final[col].isnull().sum()
+                df_final[col] = df_final[col].fillna(median_val)
+                nan_count_after = df_final[col].isnull().sum()
+                print(f"{col}: {nan_count_before} → {nan_count_after} NaN (médiane={median_val:.1f})")
+            else:
+                # Si médiane est NaN, utiliser 0 comme fallback
+                nan_count = df_final[col].isnull().sum()
+                df_final[col] = df_final[col].fillna(0)
+                print(f"{col}: {nan_count} → 0 NaN (fallback=0)")
+    
+    print(f"Imputation terminée. Shape finale: {df_final.shape}")
+    print(f"Total NaN restants: {df_final.isnull().sum().sum()}")
+    
+    return df_final
 
 def prepare_train_data(df):
     """Préparer les données pour l'entraînement."""
-    feature_cols = [col for col in df.columns if col != 'y']
-    X = df[feature_cols]
-    y = df['y']
+    print(f"Données préparées: {len(df)} échantillons")
+    
+    # Nettoyage final : supprimer toute ligne avec NaN
+    df_clean = df.dropna()
+    print(f"Après nettoyage final: {len(df_clean)} échantillons")
+    
+    feature_cols = [col for col in df_clean.columns if col != 'y']
+    X = df_clean[feature_cols]
+    y = df_clean['y']
+    
+    # Vérification finale
+    if X.isnull().any().any():
+        print("Warning: NaN détectés dans X")
+    if y.isnull().any():
+        print("Warning: NaN détectés dans y")
+    
     return X, y
 
 def train_models(df):
@@ -61,8 +105,8 @@ def train_models(df):
     X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
     
-    print(f"📊 Données d'entraînement: {len(X_train)} échantillons")
-    print(f"📊 Données de test: {len(X_test)} échantillons")
+    print(f"Données d'entraînement: {len(X_train)} échantillons")
+    print(f"Données de test: {len(X_test)} échantillons")
     
     # Modèles à entraîner
     models = {
@@ -75,7 +119,7 @@ def train_models(df):
     models_dir.mkdir(exist_ok=True)
     
     for name, model in models.items():
-        print(f"\n🤖 Entraînement du modèle: {name}")
+        print(f"\nEntraînement du modèle: {name}")
         
         # Entraîner
         model.fit(X_train, y_train)
@@ -103,7 +147,7 @@ def train_models(df):
             'trained_at': datetime.now().isoformat()
         }, model_path)
         
-        print(f"✅ {name}:")
+        print(f"{name}:")
         print(f"   - MAE: {metrics['mae']:.2f}")
         print(f"   - RMSE: {metrics['rmse']:.2f}")
         print(f"   - R²: {metrics['r2']:.4f}")
@@ -112,19 +156,19 @@ def train_models(df):
     
     # Meilleur modèle
     best_model = min(results.items(), key=lambda x: x[1]['mae'])
-    print(f"\n🏆 Meilleur modèle (MAE): {best_model[0]}")
+    print(f"\nMeilleur modèle (MAE): {best_model[0]}")
     print(f"   MAE: {best_model[1]['mae']:.2f}")
     
     return results
 
 def main():
     """Fonction principale."""
-    print("🚀 Démarrage de l'entraînement des modèles simples")
+    print("Démarrage de l'entraînement des modèles simples")
     
     try:
         # Charger les données
         df = load_timeseries(os.getenv("CITY", "Paris"))
-        print(f"📊 Données chargées: {len(df)} échantillons")
+        print(f"Données chargées: {len(df)} échantillons")
         
         # Entraîner les modèles
         results = train_models(df)
@@ -140,11 +184,11 @@ def main():
         with open("models/training_summary.json", "w") as f:
             json.dump(summary, f, indent=2, default=str)
         
-        print(f"\n📄 Résumé sauvegardé: models/training_summary.json")
-        print("🎉 Entraînement terminé avec succès!")
+        print(f"\nRésumé sauvegardé: models/training_summary.json")
+        print("Entraînement terminé avec succès!")
         
     except Exception as e:
-        print(f"❌ Erreur lors de l'entraînement: {e}")
+        print(f"Erreur lors de l'entraînement: {e}")
         raise
 
 if __name__ == "__main__":

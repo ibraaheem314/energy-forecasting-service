@@ -15,8 +15,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATA_SOURCE = os.getenv("DATA_SOURCE", "synthetic").lower()  # "synthetic" | "odre"
 ODRE_BASE_URL = os.getenv("ODRE_BASE_URL", "https://odre.opendatasoft.com")
 ODRE_DATASET = os.getenv("ODRE_DATASET", "eco2mix-national-cons-def")
-WINDOW_DAYS = int(os.getenv("WINDOW_DAYS", "30"))
-RESAMPLE_HOURLY = os.getenv("RESAMPLE_HOURLY", "true").lower() == "true"
+WINDOW_DAYS = int(os.getenv("WINDOW_DAYS", "1095"))  # 3 ans pour avoir plus de données
+RESAMPLE_HOURLY = os.getenv("RESAMPLE_HOURLY", "false").lower() == "true"  # Garder 15min natif
 
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
@@ -58,7 +58,8 @@ def _fetch_odre_csv() -> pd.DataFrame:
     logger.info("Fetching ODRÉ CSV from %s", url)
     resp = requests.get(url, timeout=60)
     resp.raise_for_status()
-    return pd.read_csv(io.BytesIO(resp.content))
+    # CSV français utilise le séparateur point-virgule
+    return pd.read_csv(io.BytesIO(resp.content), sep=';')
 
 def _load_odre() -> pd.DataFrame:
     """
@@ -130,3 +131,4 @@ def load_timeseries(location: str = "France") -> pd.DataFrame:
     except Exception as e:
         logger.exception("Erreur de chargement données: %s", e)
         return _load_synthetic()
+

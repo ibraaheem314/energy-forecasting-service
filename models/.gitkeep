@@ -1,0 +1,3 @@
+# Dossier pour stocker les modèles entraînés
+# Les fichiers .joblib sont ignorés par Git (trop volumineux)
+# Seuls les fichiers de résumé sont versionnés

@@ -74,3 +74,29 @@ clean: ## Clean build artifacts
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	rm -rf build/ dist/ .coverage htmlcov/
+
+# === MODÈLES INDIVIDUELS ===
+train-linear: ## Train Linear Regression model
+	$(ACTIVATE) && $(PYTHON) scripts/models/linear_regression.py
+
+train-rf: ## Train Random Forest model
+	$(ACTIVATE) && $(PYTHON) scripts/models/random_forest.py
+
+train-lgb: ## Train LightGBM model
+	$(ACTIVATE) && $(PYTHON) scripts/models/lightgbm_model.py
+
+train-gbq: ## Train Gradient Boosting Quantile model
+	$(ACTIVATE) && $(PYTHON) scripts/models/gradient_boosting_quantile.py
+
+train-all: ## Train all models with optimized data loading
+	$(ACTIVATE) && $(PYTHON) scripts/run_all_models.py --data odre
+
+# === CACHE MANAGEMENT ===
+cache-info: ## Show cache information
+	$(ACTIVATE) && $(PYTHON) scripts/manage_cache.py info
+
+cache-clear: ## Clear all cache
+	$(ACTIVATE) && $(PYTHON) scripts/manage_cache.py clear
+
+cache-preload: ## Preload ODRÉ data to cache
+	$(ACTIVATE) && $(PYTHON) scripts/manage_cache.py preload --source odre
