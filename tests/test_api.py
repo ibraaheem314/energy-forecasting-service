@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
-from app.api.main import app
+from app.api import app
 
 client = TestClient(app)
 
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json().get("status") == "ok"
+    assert r.json().get("status") == "healthy"
 
 def test_forecast_minimal():
     # Test avec un horizon plus petit pour accélérer les tests

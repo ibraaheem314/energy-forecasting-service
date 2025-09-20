@@ -1,0 +1,93 @@
+{
+  "timestamp": "2025-09-15T23:18:03.329411",
+  "data_source": "odre",
+  "results": {
+    "linear_regression": {
+      "metrics": {
+        "mae": 2459.6587964870337,
+        "mse": 14592550.14178541,
+        "rmse": 3820.0196520156032,
+        "r2": 0.6865523335087507,
+        "mape": 5.405346343874078
+      },
+      "filepath": "models\\linear_regression_20250915_231653.joblib",
+      "status": "success"
+    },
+    "random_forest": {
+      "metrics": {
+        "mae": 2136.209859480312,
+        "mse": 14074089.39945342,
+        "rmse": 3751.5449350172285,
+        "r2": 0.6976888592203148,
+        "mape": 4.704645928186953
+      },
+      "filepath": "models\\random_forest_20250915_231655.joblib",
+      "status": "success"
+    },
+    "lightgbm": {
+      "metrics": {
+        "mae": 2188.4604217930137,
+        "mse": 14630891.770757066,
+        "rmse": 3825.0348718354276,
+        "r2": 0.6857287561344145,
+        "mape": 4.8561888550511085
+      },
+      "filepath": "models\\lightgbm_20250915_231655.joblib",
+      "status": "success"
+    },
+    "gradient_boosting_quantile": {
+      "metrics": {
+        "mae": 2121.371012198876,
+        "mse": 13863830.010911055,
+        "rmse": 3723.4164433905394,
+        "r2": 0.7157396550462739,
+        "mape": 4.703487795758435,
+        "coverage_80": 83.28044303403647,
+        "interval_width": 5503.739488691281,
+        "quantiles_available": [
+          "q10",
+          "q25",
+          "q50",
+          "q75",
+          "q90"
+        ]
+      },
+      "filepath": "models\\gradient_boosting_quantile_20250915_231803.joblib",
+      "status": "success"
+    }
+  },
+  "comparison": [
+    {
+      "Mod\u00e8le": "linear_regression",
+      "MAE": "2459.66",
+      "RMSE": "3820.02",
+      "R\u00b2": "0.6866",
+      "MAPE": "5.41%",
+      "Status": "\u2705"
+    },
+    {
+      "Mod\u00e8le": "random_forest",
+      "MAE": "2136.21",
+      "RMSE": "3751.54",
+      "R\u00b2": "0.6977",
+      "MAPE": "4.70%",
+      "Status": "\u2705"
+    },
+    {
+      "Mod\u00e8le": "lightgbm",
+      "MAE": "2188.46",
+      "RMSE": "3825.03",
+      "R\u00b2": "0.6857",
+      "MAPE": "4.86%",
+      "Status": "\u2705"
+    },
+    {
+      "Mod\u00e8le": "gradient_boosting_quantile",
+      "MAE": "2121.37",
+      "RMSE": "3723.42",
+      "R\u00b2": "0.7157",
+      "MAPE": "4.70%",
+      "Status": "\u2705"
+    }
+  ]
+}

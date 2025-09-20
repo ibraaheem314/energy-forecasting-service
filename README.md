@@ -1,1 +1,226 @@
-```markdown # Energy Forecasting - Projet Data Science **Prévision de consommation énergétique avec Machine Learning (exécution locale sans Docker)** > Version **Option B** : projet exécutable **en local** avec `venv` + `Makefile`. > Pas de Docker, pas de MLflow/Postgres/Grafana/Prometheus/Kubernetes dans cette version. ## Table des matières - [Objectifs](#objectifs) - [Structure du projet](#structure-du-projet) - [Démarrage rapide](#démarrage-rapide) - [Données](#données) - [Modèles](#modèles) - [Utilisation API](#utilisation-api) - [Dashboard](#dashboard) - [Tests](#tests) - [Livrables Portfolio](#livrables-portfolio) - [Contribution](#contribution) - [License](#license) - [Contact](#contact) --- ## Objectifs Implémenter un système de **prévision de la consommation énergétique** sur les prochains jours, avec : - **Feature engineering** pour séries temporelles - **Modélisation** (baseline/SARIMAX/LightGBM) - **Évaluation** (RMSE/MAPE) - **API FastAPI** pour servir les prédictions - **Dashboard Streamlit** pour visualiser les résultats --- ## Structure du projet ``` energy-forecasting-service/ app/ api/ # API FastAPI (endpoints /health, /forecast) main.py schemas.py services/ # Services data/ML loader.py # Données (synthétiques par défaut ou ODRÉ) features.py # Lags, rolling, calendaires models.py # Baseline, SARIMAX, LGBM config.py dashboard/ app.py # Streamlit (consomme l'API) scripts/ fetch\_data.py # Récupération/formatage train\_models.py # Entraînement evaluate\_models.py # Backtests & métriques tests/ data/ # Données locales (gitignored) models/ # Artefacts modèles (gitignored) .env.example Makefile requirements.txt README.md ```` > Les **notebooks** sont optionnels. Ils ne sont pas nécessaires pour exécuter le projet. --- ## Démarrage rapide ### Prérequis - **Python 3.11+** - **Git** - macOS / Linux / Windows (PowerShell) ### Installation ```bash # 1) Cloner git clone https://github.com/ibraaheem314/energy-forecasting-service.git cd energy-forecasting-service # 2) Variables d'environnement cp .env.example .env # 3) Installer (crée .venv + installe requirements) make install # (optionnel) outils dev: pytest, ruff, black make install-dev ```` ### Lancer l’API ```bash make run # Swagger: http://127.0.0.1:8000/docs ``` ### Lancer le Dashboard ```bash make dashboard # http://127.0.0.1:8501 ``` > Sur Windows PowerShell, active le venv si besoin : `.\.venv\Scripts\Activate.ps1` --- ## Données * **Par défaut** : `app/services/loader.py` génère **des données synthétiques** pour tester l’API et le dashboard immédiatement. * **Option recommandée (Open Data)** : brancher **ODRÉ (OpenDataSoft / RTE Open Data)** dans `loader.py` pour récupérer de la conso réelle sans OAuth. * **Option avancée (plus tard)** : **RTE iservices** (OAuth2/client secret) si tu veux des APIs nécessitant authentification. Configuration minimale (`.env`) : ```ini API_HOST=127.0.0.1 API_PORT=8000 DASHBOARD_PORT=8501 DATA_DIR=./data CITY=Paris TIMEZONE=Europe/Paris DATA_SOURCE=synthetic # synthetic | odre ODRE_BASE_URL=https://odre.opendatasoft.com ODRE_DATASET=eco2mix-national-cons-def ``` --- ## Modèles * **Baselines** : persistance (y\[t] = y\[t-168]), moyennes mobiles 24/168h. * **SARIMAX** : exogènes calendaires/météo si disponibles. * **LightGBM** : lags (1, 24, 168), rolling (mean\_24, mean\_168), variables calendaires. * **Métriques** : **RMSE** (principale), **MAPE** (secondaire). * **Sélection** : promotion du meilleur modèle “prod” (flag simple interne ; pas de MLflow dans cette option). ### Commandes utiles ```bash make fetch-data # récupère/prepare les données (synthetiques ou ODRÉ si configuré) make train # entraîne les modèles make evaluate # exécute backtests RMSE/MAPE ``` --- ## Utilisation API ### Endpoints * **Santé** : `GET /health` → `{"status": "ok"}` * **Prévision** : `POST /forecast` **Exemple de requête** : ```json { "horizon": 168, "city": "Paris", "with_intervals": true } ``` **Exemple de réponse (extrait)** : ```json { "timestamps": ["2025-09-14T00:00:00Z", "..."], "yhat": [31245.1, "..."], "yhat_lower": [29800.5, "..."], "yhat_upper": [32790.2, "..."], "model_name": "lightgbm", "model_version": "1.0.0" } ``` **cURL** : ```bash curl -X POST "http://127.0.0.1:8000/forecast" \ -H "Content-Type: application/json" \ -d '{"horizon":168,"city":"Paris","with_intervals":true}' ``` --- ## Dashboard Le dashboard Streamlit consomme l’API `/forecast` et propose : * **Forecasts** : prédictions 7 jours + intervalles * **Model Performance** : RMSE/MAPE des backtests * **Historical Data** : exploration des historiques Lancer : ```bash make dashboard # http://127.0.0.1:8501 ``` --- ## Tests ```bash make test # tests unitaires make lint # ruff + black --check (si configurés) ``` **Couverture visée** : ≥ 80% sur la logique de features et endpoints principaux. --- ## Livrables Portfolio * **API locale** : endpoint `/forecast` documenté (Swagger) * **Dashboard** : visualisations claires des prédictions * **Rapport comparatif** (README/notes) : RMSE/MAPE, choix du modèle, limites & next steps * **Code propre** : Makefile, tests unitaires, structure claire --- ## Contribution Contributions bienvenues ! Ouvre une **issue** ou une **PR**. --- ## License MIT License — voir [LICENSE](LICENSE). --- ## Contact * **Issues** : [https://github.com/ibraaheem314/energy-forecasting-service/issues](https://github.com/ibraaheem314/energy-forecasting-service/issues) * **Discussions** : [https://github.com/ibraaheem314/energy-forecasting-service/discussions](https://github.com/ibraaheem314/energy-forecasting-service/discussions) --- ** Développé pour apprendre et démontrer une mise en production simple (sans Docker) ** ``` ```
+# Energy Forecasting Service
+
+Service de prévision de consommation énergétique utilisant des techniques de Machine Learning.
+
+## Structure du Projet
+
+```
+energy-forecasting-service/
+├── README.md              # Documentation principale
+├── requirements.txt       # Dépendances (versionnées proprement)
+├── .gitignore            # Fichiers à ignorer par Git
+├── Makefile              # Commandes automatisées
+├── pyproject.toml        # Configuration du projet Python
+│
+├── data/                 # Jeux de données
+│   ├── raw/             # Données brutes / externes
+│   ├── processed/       # Données nettoyées prêtes à l'usage
+│   └── cache/           # Cache des données traitées
+│
+├── notebooks/           # Exploration, prototypes
+│   └── 01_exploration_donnees.ipynb
+│
+├── src/                 # Code source principal
+│   ├── __init__.py
+│   ├── features.py      # Extraction de features (lags, rolling, calendaires)
+│   ├── models.py        # SARIMAX, LightGBM, quantile, expectile
+│   ├── evaluation.py    # RMSE, MAPE, Pinball Loss, CRPS, Coverage
+│   ├── fairness.py      # Couverture par sous-groupes (fairness metrics)
+│   └── utils.py         # Fonctions utilitaires génériques
+│
+├── app/                 # Application légère
+│   ├── api.py          # FastAPI (endpoints /forecast etc.)
+│   └── dashboard.py    # Streamlit (visualisation résultats, fairness)
+│
+├── models/              # Modèles entraînés sauvegardés
+│
+└── tests/               # Tests unitaires simples
+    ├── test_features.py
+    ├── test_models.py
+    └── test_api.py
+```
+
+## Installation
+
+1. **Cloner le repository**
+   ```bash
+   git clone <repository-url>
+   cd energy-forecasting-service
+   ```
+
+2. **Installer les dépendances**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configuration optionnelle**
+   ```bash
+   # Pour utiliser les données RTE ODRÉ au lieu des données synthétiques
+   export DATA_SOURCE=odre
+   ```
+
+## Utilisation
+
+### Démarrage rapide
+
+1. **Lancer l'API**
+   ```bash
+   make run
+   # ou directement :
+   python -c "from app.api import app; import uvicorn; uvicorn.run(app, host='127.0.0.1', port=8000)"
+   ```
+
+2. **Lancer le dashboard**
+   ```bash
+   make dashboard
+   # ou directement :
+   streamlit run app/dashboard.py
+   ```
+
+3. **Tester l'API**
+   ```bash
+   curl http://localhost:8000/health
+   curl -X POST http://localhost:8000/forecast -H "Content-Type: application/json" -d '{"horizon": 24, "city": "Paris", "with_intervals": true}'
+   ```
+
+### Commandes Makefile
+
+- `make help` - Afficher l'aide
+- `make install` - Installer les dépendances
+- `make test` - Lancer les tests
+- `make lint` - Vérifier le code
+- `make run` - Lancer l'API
+- `make dashboard` - Lancer le dashboard
+- `make train` - Entraîner un modèle simple
+- `make clean` - Nettoyer les fichiers temporaires
+
+## Fonctionnalités
+
+### API FastAPI
+
+L'API expose les endpoints suivants :
+
+- `GET /` - Information sur l'API
+- `GET /health` - Statut de santé
+- `POST /forecast` - Prévisions énergétiques
+
+Exemple de requête :
+```json
+{
+  "horizon": 24,
+  "city": "Paris",
+  "with_intervals": true
+}
+```
+
+### Dashboard Streamlit
+
+Interface web interactive pour :
+- Configurer les paramètres de prévision
+- Visualiser les résultats
+- Analyser les intervalles de confiance
+
+### Modèles Disponibles
+
+- **Linear Regression** - Modèle de base rapide
+- **Random Forest** - Modèle d'ensemble robuste
+- **LightGBM** - Gradient boosting efficace
+- **Gradient Boosting Quantile** - Prédictions avec intervalles de confiance
+
+### Engineering des Features
+
+- **Features temporelles** : heure, jour, mois, saison
+- **Features cycliques** : sin/cos pour capturer la cyclicité
+- **Features de lag** : valeurs passées (1h, 2h, 3h, etc.)
+- **Features de rolling** : moyennes mobiles, écarts-types
+- **Features booléennes** : weekend, heures de pointe, etc.
+
+### Métriques d'Évaluation
+
+- **Prédictions ponctuelles** : MAE, RMSE, R², MAPE
+- **Prédictions quantiles** : Pinball Loss, Coverage
+- **Fairness** : Métriques par sous-groupes temporels
+
+## Développement
+
+### Tests
+
+```bash
+# Tous les tests
+make test
+
+# Tests spécifiques
+python -m pytest tests/test_api.py -v
+python -m pytest tests/test_models.py -v
+python -m pytest tests/test_features.py -v
+```
+
+### Linting et Formatage
+
+```bash
+# Vérifier le code
+make lint
+
+# Formater le code
+make format
+```
+
+### Ajout de Nouveaux Modèles
+
+1. Créer une nouvelle classe dans `src/models.py` qui hérite de `BaseModel`
+2. Implémenter les méthodes `fit`, `predict`, `save`, `load`
+3. Ajouter le modèle dans la fonction `create_model`
+4. Ajouter des tests dans `tests/test_models.py`
+
+## Configuration
+
+### Variables d'Environnement
+
+- `DATA_SOURCE` - Source des données (`synthetic` ou `odre`)
+- `API_HOST` - Host de l'API (défaut: `127.0.0.1`)
+- `API_PORT` - Port de l'API (défaut: `8000`)
+
+### Données
+
+Le service peut utiliser :
+- **Données synthétiques** - Pour le développement et les tests
+- **Données RTE ODRÉ** - Données réelles de consommation française
+
+## Performance
+
+- **API** : ~100-200ms par prédiction
+- **Entraînement** : 1-5 minutes selon le modèle
+- **Cache** : Réduction de 90% du temps de chargement des données
+
+## Troubleshooting
+
+### Problèmes Courants
+
+1. **ModuleNotFoundError** - Vérifier que les dépendances sont installées
+2. **API ne répond pas** - Vérifier que le port n'est pas utilisé
+3. **Données manquantes** - Vérifier la configuration `DATA_SOURCE`
+
+### Debug
+
+```bash
+# Vérifier la structure
+make structure
+
+# Nettoyer les caches
+make clean
+
+# Logs détaillés
+python -c "from src.utils import setup_logging; setup_logging('DEBUG')"
+```
+
+## Contribution
+
+1. Fork le repository
+2. Créer une branche feature (`git checkout -b feature/amazing-feature`)
+3. Commit les changements (`git commit -m 'Add amazing feature'`)
+4. Push vers la branche (`git push origin feature/amazing-feature`)
+5. Ouvrir une Pull Request
+
+## Licence
+
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.

@@ -1,1 +1,27 @@
-"""Configuration settings for the energy forecasting service.""" import os from pathlib import Path # Base paths BASE_DIR = Path(__file__).parent.parent DATA_DIR = BASE_DIR / "data" MLRUNS_DIR = BASE_DIR / "mlruns" # API settings API_HOST = os.getenv("API_HOST", "0.0.0.0") API_PORT = int(os.getenv("API_PORT", "8000")) # Database settings DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./energy_forecasting.db") # MLflow settings MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", f"file://{MLRUNS_DIR}") MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "energy_forecasting") # Model settings DEFAULT_MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "energy_forecast_model") MODEL_REGISTRY_STAGE = os.getenv("MODEL_REGISTRY_STAGE", "Production") # Data settings DATA_REFRESH_INTERVAL_HOURS = int(os.getenv("DATA_REFRESH_INTERVAL_HOURS", "24")) FORECAST_HORIZON_HOURS = int(os.getenv("FORECAST_HORIZON_HOURS", "24"))
+"""Configuration settings for the energy forecasting service."""
+import os
+from pathlib import Path
+
+# Base paths
+BASE_DIR = Path(__file__).parent.parent
+DATA_DIR = BASE_DIR / "data"
+MLRUNS_DIR = BASE_DIR / "mlruns"
+
+# API settings
+API_HOST = os.getenv("API_HOST", "0.0.0.0")
+API_PORT = int(os.getenv("API_PORT", "8000"))
+
+# Database settings
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./energy_forecasting.db")
+
+# MLflow settings
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", f"file://{MLRUNS_DIR}")
+MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "energy_forecasting")
+
+# Model settings
+DEFAULT_MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "energy_forecast_model")
+MODEL_REGISTRY_STAGE = os.getenv("MODEL_REGISTRY_STAGE", "Production")
+
+# Data settings
+DATA_REFRESH_INTERVAL_HOURS = int(os.getenv("DATA_REFRESH_INTERVAL_HOURS", "24"))
+FORECAST_HORIZON_HOURS = int(os.getenv("FORECAST_HORIZON_HOURS", "24"))

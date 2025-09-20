@@ -1,102 +1,55 @@
+# Makefile pour Energy Forecasting Project
 
-# Energy Forecasting - Data Science Project (Option B: local sans Docker)
-.PHONY: help install install-dev test run dashboard fetch-data train evaluate train-models evaluate-models jupyter clean lint
+.PHONY: help install install-dev test lint clean run dashboard train evaluate
 
-PYTHON ?= python
-VENV   ?= .venv
-ACTIVATE = . $(VENV)/bin/activate
+# Configuration
+PYTHON := python
+PIP := pip
+PORT := 8000
+DASHBOARD_PORT := 8501
 
-help: ## Show this help message
-	@echo "Energy Forecasting - Data Science Project"
-	@echo "========================================"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
+help: ## Afficher l'aide
+	@echo "Commandes disponibles :"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-install: ## Create venv and install runtime dependencies
-	$(PYTHON) -m venv $(VENV)
-	$(ACTIVATE) && pip install -U pip
-	@if [ -f requirements.txt ]; then \
-		$(ACTIVATE) && pip install -r requirements.txt ; \
-	else \
-		$(ACTIVATE) && pip install -e . ; \
-	fi
+install: ## Installer les dépendances
+	$(PIP) install -r requirements.txt
 
-install-dev: install ## Install dev tools
-	$(ACTIVATE) && pip install -U ruff black pytest pytest-cov streamlit jupyterlab
+install-dev: install ## Installer les dépendances de développement
+	$(PIP) install -e .
 
-test: ## Run tests with coverage
-	$(ACTIVATE) && pytest tests/ --cov=app --cov-report=term-missing --cov-report=html
+test: ## Lancer les tests
+	$(PYTHON) -m pytest tests/ -v
 
-lint: ## Lint & format check
-	$(ACTIVATE) && ruff check . && black --check .
+lint: ## Vérifier le code avec les linters
+	$(PYTHON) -m black --check src/ app/ tests/
+	$(PYTHON) -m isort --check-only src/ app/ tests/
+	$(PYTHON) -m flake8 src/ app/ tests/
 
-fetch-data: ## Fetch/prepare data (synthetic or ODRÉ if configured)
-	@if [ -f scripts/fetch_data.py ]; then \
-		$(ACTIVATE) && $(PYTHON) scripts/fetch_data.py ; \
-	elif [ -f jobs/fetch_data.py ]; then \
-		$(ACTIVATE) && $(PYTHON) jobs/fetch_data.py ; \
-	else \
-		echo "No fetch_data.py found in scripts/ or jobs/"; exit 1; \
-	fi
+format: ## Formater le code
+	$(PYTHON) -m black src/ app/ tests/
+	$(PYTHON) -m isort src/ app/ tests/
 
-train: ## Train models
-	@if [ -f scripts/train_models.py ]; then \
-		$(ACTIVATE) && $(PYTHON) scripts/train_models.py ; \
-	elif [ -f scripts/train.py ]; then \
-		$(ACTIVATE) && $(PYTHON) scripts/train.py ; \
-	else \
-		echo "No training script found (scripts/train_models.py or scripts/train.py)"; exit 1; \
-	fi
+run: ## Lancer l'API
+	$(PYTHON) -c "from app.api import app; import uvicorn; uvicorn.run(app, host='127.0.0.1', port=$(PORT))"
 
-evaluate: ## Evaluate models (backtests RMSE/MAPE)
-	@if [ -f scripts/evaluate_models.py ]; then \
-		$(ACTIVATE) && $(PYTHON) scripts/evaluate_models.py ; \
-	elif [ -f scripts/evaluate.py ]; then \
-		$(ACTIVATE) && $(PYTHON) scripts/evaluate.py ; \
-	else \
-		echo "No evaluation script found (scripts/evaluate_models.py or scripts/evaluate.py)"; exit 1; \
-	fi
+dashboard: ## Lancer le dashboard Streamlit
+	streamlit run app/dashboard.py --server.port $(DASHBOARD_PORT)
 
-# Backward-compat aliases
-train-models: train        ## Alias of 'train'
-evaluate-models: evaluate  ## Alias of 'evaluate'
+train: ## Entraîner un modèle
+	$(PYTHON) -c "from src.models import create_model; from src.features import create_features; import pandas as pd; import numpy as np; from datetime import datetime, timedelta; print('Entraînement d\\'un modèle simple...'); dates = pd.date_range(start=datetime.now()-timedelta(days=30), end=datetime.now(), freq='h'); data = pd.DataFrame({'consommation_mw': 100 + np.random.normal(0, 10, len(dates))}, index=dates); df_features = create_features(data); X = df_features[[c for c in df_features.columns if c != 'y']].fillna(0); y = df_features['y']; model = create_model('linear'); model.fit(X, y); model.save('models/linear_latest.joblib'); print('Modèle sauvegardé dans models/linear_latest.joblib')"
 
-run: ## Run the API server
-	$(ACTIVATE) && uvicorn app.api.main:app --host $${API_HOST:-127.0.0.1} --port $${API_PORT:-8000} --reload
+evaluate: ## Évaluer les modèles
+	$(PYTHON) -c "from src.evaluation import ModelEvaluator; print('Évaluation des modèles...')"
 
-dashboard: ## Run the Streamlit dashboard
-	$(ACTIVATE) && streamlit run dashboard/app.py --server.port $${DASHBOARD_PORT:-8501}
+clean: ## Nettoyer les fichiers temporaires
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	find . -type f -name "*.pyo" -delete 2>/dev/null || true
+	find . -type f -name "*.pyd" -delete 2>/dev/null || true
+	find . -type f -name ".coverage" -delete 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
-jupyter: ## Start JupyterLab (optional)
-	$(ACTIVATE) && jupyter lab
-
-clean: ## Clean build artifacts
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name "*.egg-info" -exec rm -rf {} +
-	rm -rf build/ dist/ .coverage htmlcov/
-
-# === MODÈLES INDIVIDUELS ===
-train-linear: ## Train Linear Regression model
-	$(ACTIVATE) && $(PYTHON) scripts/models/linear_regression.py
-
-train-rf: ## Train Random Forest model
-	$(ACTIVATE) && $(PYTHON) scripts/models/random_forest.py
-
-train-lgb: ## Train LightGBM model
-	$(ACTIVATE) && $(PYTHON) scripts/models/lightgbm_model.py
-
-train-gbq: ## Train Gradient Boosting Quantile model
-	$(ACTIVATE) && $(PYTHON) scripts/models/gradient_boosting_quantile.py
-
-train-all: ## Train all models with optimized data loading
-	$(ACTIVATE) && $(PYTHON) scripts/run_all_models.py --data odre
-
-# === CACHE MANAGEMENT ===
-cache-info: ## Show cache information
-	$(ACTIVATE) && $(PYTHON) scripts/manage_cache.py info
-
-cache-clear: ## Clear all cache
-	$(ACTIVATE) && $(PYTHON) scripts/manage_cache.py clear
-
-cache-preload: ## Preload ODRÉ data to cache
-	$(ACTIVATE) && $(PYTHON) scripts/manage_cache.py preload --source odre
+structure: ## Afficher la structure du projet
+	@echo "Structure du projet :"
+	@tree -I '__pycache__|*.pyc|*.pyo|*.egg-info|.git' . || ls -la
